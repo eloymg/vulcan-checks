@@ -1,0 +1,5 @@
+[Check]
+Target = "https://example.com"
+AssetType = "WebAddress"
+# Options example
+# Options = '{"force_update_templates": true, "severities":"critical,high,medium"}'
