@@ -20,38 +20,20 @@ import (
 )
 
 var (
-	checkName            = "vulcan-nuclei"
-	logger               = check.NewCheckLog(checkName)
-	userAgent            = "x-vulcan"
-	nucleiCmd            = "./nuclei"
-	nucleiTemplatePath   = "/root/nuclei-templates/"
-	defaultInclusionList = []string{
-		"cves",
-		"subdomain-takeover",
-		"security-misconfiguration",
-		"generic-detections",
-		"default-credentials",
-		"files",
-		"vulnerabilities",
-		"technologies",
-		"dns",
-		"panels",
-		"tokens",
-	}
-	defaultExclusionList = []string{
-		".github",
-		"fuzzing",
-		"misc",
-		"workflows"}
+	checkName          = "vulcan-nuclei"
+	logger             = check.NewCheckLog(checkName)
+	userAgent          = "x-vulcan-nuclei"
+	nucleiCmd          = "./nuclei"
+	nucleiTemplatePath = "/root/nuclei-templates/"
 )
 
 type void struct{}
 
 type options struct {
-	ForceUpdateTemplates  bool   `json:"force_update_templates"`
-	Severities            string `json:"severities"`
-	TemplateInclusionList string `json:"template_inclusion_list"`
-	TemplateExclusionList string `json:"template_exclusion_list"`
+	ForceUpdateTemplates  bool     `json:"force_update_templates"`
+	Severities            []string `json:"severities"`
+	TemplateInclusionList []string `json:"template_inclusion_list"`
+	TemplateExclusionList []string `json:"template_exclusion_list"`
 }
 
 // Vulnerability defines nuclei vulnerability report struct.
@@ -139,13 +121,9 @@ func run(ctx context.Context, target, assetType, optJSON string, state checkstat
 	logger.Infof("Available templates: %+v", availableTemplates)
 
 	selectedTemplates := make(map[string]void)
-	inclusionList := strings.Split(opt.TemplateInclusionList, ",")
-	inclusionList = append(inclusionList, defaultInclusionList...)
-	// If inclusionList is not empty, use only inclued ones.
-	// If inclusionList is empty, user all available templates.
-	logger.Infof("Included templates: %+v", inclusionList)
-	if len(inclusionList) > 0 && inclusionList[0] != "" {
-		for _, v := range inclusionList {
+	logger.Infof("Included templates: %+v", opt.TemplateInclusionList)
+	if len(opt.TemplateInclusionList) > 0 {
+		for _, v := range opt.TemplateInclusionList {
 			if _, ok := availableTemplates[v]; ok {
 				selectedTemplates[v] = void{}
 			}
@@ -157,10 +135,10 @@ func run(ctx context.Context, target, assetType, optJSON string, state checkstat
 	}
 
 	// Remove exclued templates from selectedTemplates.
-	exclusionList := strings.Split(opt.TemplateExclusionList, ",")
-	exclusionList = append(exclusionList, defaultExclusionList...)
-	logger.Infof("Exclued templates: %+v", exclusionList)
-	for _, v := range exclusionList {
+	logger.Infof("Exclued templates: %+v", opt.TemplateExclusionList)
+	// Explicitly remove ".github" in case it exists.
+	opt.TemplateExclusionList = append(opt.TemplateExclusionList, ".github")
+	for _, v := range opt.TemplateExclusionList {
 		if _, ok := selectedTemplates[v]; ok {
 			delete(selectedTemplates, v)
 		}
@@ -182,9 +160,10 @@ func run(ctx context.Context, target, assetType, optJSON string, state checkstat
 	}
 
 	// Include only selected severities.
-	if opt.Severities != "" {
-		logger.Infof("Selected severities: %s", opt.Severities)
-		severities := []string{"-severity", opt.Severities}
+	selectedSeverities := strings.Join(opt.Severities, ",")
+	if len(opt.Severities) > 0 {
+		logger.Infof("Selected severities: %s", selectedSeverities)
+		severities := []string{"-severity", selectedSeverities}
 		nucleiArgs = append(nucleiArgs, severities...)
 	}
 

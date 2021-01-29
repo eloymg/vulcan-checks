@@ -2,4 +2,11 @@
 Target = "https://example.com"
 AssetType = "WebAddress"
 # Options example
-# Options = '{"force_update_templates": true, "severities":"critical,high,medium"}'
+Options = """\
+    {\
+        "force_update_templates": true,\
+        "template_inclusion_list": ["cves", "default-logins", "dns", "exposed-panels", "exposed-tokens", "exposures", "misconfiguration", "takeovers", "technologies", "vulnerabilities"],\
+        "template_exclusion_list": ["fuzzing", "helpers", "miscellaneous", "workflows"],\
+        "severities": ["critical", "high", "medium", "low"]\
+    }\
+"""
