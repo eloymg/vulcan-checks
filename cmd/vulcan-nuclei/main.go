@@ -144,7 +144,7 @@ func run(ctx context.Context, target, assetType, optJSON string, state checkstat
 	// If inclusionList is not empty, use only inclued ones.
 	// If inclusionList is empty, user all available templates.
 	logger.Infof("Included templates: %+v", inclusionList)
-	if len(inclusionList) > 1 {
+	if len(inclusionList) > 0 && inclusionList[0] != "" {
 		for _, v := range inclusionList {
 			if _, ok := availableTemplates[v]; ok {
 				selectedTemplates[v] = void{}
