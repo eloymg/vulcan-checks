@@ -224,10 +224,7 @@ func run(ctx context.Context, target, assetType, optJSON string, state checkstat
 		var vuln = report.Vulnerability{
 			Summary:     v.Name,
 			Description: v.Description,
-			Recommendations: []string{
-				"Update or protect the exposed resource.",
-			},
-			Score: score,
+			Score:       score,
 		}
 		row := map[string]string{
 			"Severity": v.Severity,
