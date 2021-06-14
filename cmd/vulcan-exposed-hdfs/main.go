@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -66,20 +67,7 @@ var (
 	logger *logrus.Entry
 )
 
-func isExposedHDFS(target string, nmapReport *gonmap.NmapRun, r *regexp.Regexp) []report.Vulnerability {
-	gr := report.ResourcesGroup{
-		Name: "Network Resources",
-		Header: []string{
-			"Hostname",
-			"Port",
-			"Protocol",
-			"Service",
-			"Version",
-			"Confirmed",
-		},
-	}
-
-	add := false
+func processExposedHDFSVulns(target string, nmapReport *gonmap.NmapRun, r *regexp.Regexp, state checkstate.State) {
 	for _, host := range nmapReport.Hosts {
 		for _, port := range host.Ports {
 			if port.State.State != "open" {
@@ -92,14 +80,20 @@ func isExposedHDFS(target string, nmapReport *gonmap.NmapRun, r *regexp.Regexp) 
 				continue
 			}
 
-			add = true
+			vuln := exposedHDFS
+			vuln.AffectedResource = fmt.Sprintf("%d/%s", port.PortId, port.Protocol)
+			vuln.Labels = []string{"hdfs"}
 
 			c := false
 			if confirmed(target, strconv.Itoa(port.PortId), port.Service.Product) {
-				exposedHDFS.Score = report.SeverityThresholdCritical
+				vuln.Score = report.SeverityThresholdCritical
+				vuln.Labels = append(vuln.Labels, "issue")
 				c = true
+			} else {
+				vuln.Labels = append(vuln.Labels, "informational")
 			}
 
+			// version, confirmed | score
 			networkResource := map[string]string{
 				"Hostname":  target,
 				"Port":      strconv.Itoa(port.PortId),
@@ -108,20 +102,28 @@ func isExposedHDFS(target string, nmapReport *gonmap.NmapRun, r *regexp.Regexp) 
 				"Version":   port.Service.Version,
 				"Confirmed": strconv.FormatBool(c),
 			}
+			gr := report.ResourcesGroup{
+				Name: "Network Resources",
+				Header: []string{
+					"Hostname",
+					"Port",
+					"Protocol",
+					"Service",
+					"Version",
+					"Confirmed",
+				},
+			}
 			gr.Rows = append(gr.Rows, networkResource)
+			vuln.Resources = []report.ResourcesGroup{gr}
 
 			logger.WithFields(logrus.Fields{"resource": networkResource}).Info("Resource added")
 
+			vuln.ID = computeVulnerabilityID(target, vuln.AffectedResource, port.Service.Product, port.Service.Version, vuln.Score)
+
+			state.AddVulnerabilities(vuln)
+			logger.WithFields(logrus.Fields{"vulnerability": vuln}).Info("Vulnerability added")
 		}
 	}
-
-	if add {
-		exposedHDFS.Resources = append(exposedHDFS.Resources, gr)
-		logger.WithFields(logrus.Fields{"vulnerability": exposedHDFS}).Info("Vulnerability added")
-		return []report.Vulnerability{exposedHDFS}
-	}
-
-	return nil
 }
 
 func confirmed(host, port, product string) bool {
@@ -239,8 +241,7 @@ func run(ctx context.Context, target, assetType, optJSON string, state checkstat
 		return err
 	}
 
-	vulns := isExposedHDFS(target, nmapReport, r)
-	state.AddVulnerabilities(vulns...)
+	processExposedHDFSVulns(target, nmapReport, r, state)
 
 	return nil
 }
@@ -248,4 +249,16 @@ func run(ctx context.Context, target, assetType, optJSON string, state checkstat
 func main() {
 	c := check.NewCheckFromHandler(checkName, run)
 	c.RunAndServe()
+}
+
+func computeVulnerabilityID(target, affectedResource string, elems ...interface{}) string {
+	h := sha256.New()
+
+	fmt.Fprintf(h, "%s - %s", target, affectedResource)
+
+	for _, e := range elems {
+		fmt.Fprintf(h, " - %v", e)
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
