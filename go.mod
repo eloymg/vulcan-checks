@@ -16,6 +16,7 @@ require (
 	github.com/apuigsech/seekret-source-dir v0.0.0-20161101151956-464d81254a35
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.38.57
+	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/hashicorp/go-version v1.2.0
 	github.com/jpillora/backoff v0.0.0-20180909062703-3050d21c67d7
