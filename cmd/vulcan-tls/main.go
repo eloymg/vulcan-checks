@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -129,70 +130,47 @@ func main() {
 			},
 		}
 
-		// Vulnerabilities on which the failures will be added.
-		wCV := weakCiphersuitesVulnerability
-		wPV := weakProtocolsVulnerability
-		mPV := missingProtocolsVulnerability
-		otherVulnerabilities := []report.Vulnerability{}
-
 		for _, f := range failures {
-			weakCiphersuites := getWeakCiphersuites(f.Issues)
-			if len(weakCiphersuites) > 0 {
-				// Use score of the most severe failure.
-				if f.Score > wCV.Score {
-					wCV.Score = f.Score
-				}
-				wCV.Details += fmt.Sprintf("Ciphersuites not recommended for a %v encryption:\n", f.Risk)
-				for _, s := range weakCiphersuites {
-					wCV.Details += fmt.Sprintf("- %v\n", s)
-				}
+			for _, s := range getWeakCiphersuites(f.Issues) {
+				vuln := weakCiphersuitesVulnerability
+
+				vuln.Score = f.Score
+				vuln.Details = fmt.Sprintf("%v ciphersuite is not recommended for a %v encryption:\n", s, f.Risk)
+				vuln.AffectedResource = fmt.Sprintf("%v / %v", target, s)
+				vuln.ID = computeVulnerabilityID(target, vuln.AffectedResource)
+
+				state.AddVulnerabilities(vuln)
 			}
 
-			weakProtocols := getWeakProtocols(f.Issues)
-			if len(weakProtocols) > 0 {
-				// Use score of the most severe failure.
-				if f.Score > wPV.Score {
-					wPV.Score = f.Score
-				}
-				wPV.Details += fmt.Sprintf("Protocols not recommended for a %v encryption:\n", f.Risk)
-				for _, s := range weakProtocols {
-					wPV.Details += fmt.Sprintf("- %v\n", s)
-				}
+			for _, s := range getWeakProtocols(f.Issues) {
+				vuln := weakProtocolsVulnerability
+
+				vuln.Score = f.Score
+				vuln.Details = fmt.Sprintf("%v protocol is not recommended for a %v encryption", s, f.Risk)
+				vuln.AffectedResource = fmt.Sprintf("%v / %v", target, s)
+				vuln.ID = computeVulnerabilityID(target, vuln.AffectedResource)
+
+				state.AddVulnerabilities(vuln)
 			}
 
-			missingProtocols := getMissingProtocols(f.Issues)
-			if len(missingProtocols) > 0 {
-				// Use score of the most severe failure.
-				if f.Score > mPV.Score {
-					mPV.Score = f.Score
-				}
-				mPV.Details += fmt.Sprintf("Protocols recommended for a %v encryption:\n", f.Risk)
-				for _, s := range missingProtocols {
-					mPV.Details += fmt.Sprintf("- %v\n", s)
-				}
+			for _, s := range getMissingProtocols(f.Issues) {
+				vuln := missingProtocolsVulnerability
+
+				vuln.Score = f.Score
+				vuln.Details = fmt.Sprintf("%v protocol is recommended for a %v encryption", s, f.Risk)
+				vuln.AffectedResource = fmt.Sprintf("%v / %v", target, s)
+				vuln.ID = computeVulnerabilityID(target, vuln.AffectedResource)
+
+				state.AddVulnerabilities(vuln)
 			}
 
-			otherVulnerabilities = append(otherVulnerabilities, getOtherVulnerabilities(f.Issues)...)
-			for _, vuln := range otherVulnerabilities {
-				if f.Score > vuln.Score {
-					vuln.Score = f.Score
-				}
+			for _, vuln := range getOtherVulnerabilities(f.Issues) {
+				vuln.AffectedResource = target
+				vuln.ID = computeVulnerabilityID(target, vuln.AffectedResource, vuln.Details, vuln.Recommendations)
+
+				state.AddVulnerabilities(vuln)
 			}
 		}
-
-		// Add existing issues to the report.
-		if wCV.Details != "" {
-			state.AddVulnerabilities(wCV)
-		}
-		if wPV.Details != "" {
-			state.AddVulnerabilities(wPV)
-		}
-		if mPV.Details != "" {
-			state.AddVulnerabilities(mPV)
-		}
-
-		// Add all other issues to the report.
-		state.AddVulnerabilities(otherVulnerabilities...)
 
 		return nil
 	}
@@ -235,7 +213,7 @@ func getMissingProtocols(failures []string) []string {
 			if strings.Contains(failure, "OCSP") {
 				continue
 			}
-			missingProtocols = append(missingProtocols, failure)
+			missingProtocols = append(missingProtocols, strings.TrimPrefix(failure, prefix))
 		}
 	}
 	return missingProtocols
@@ -294,7 +272,7 @@ func getOtherVulnerabilities(failures []string) []report.Vulnerability {
 		default:
 			// Unknown vulnerability.
 			v.Summary = "Unknown TLS Issue"
-			v.Details = failure
+			v.Details = recommendation(failure)
 		}
 
 		if v.Summary != "Unknown TLS Issue" {
@@ -323,4 +301,16 @@ func unique(stringSlice []string) []string {
 		}
 	}
 	return list
+}
+
+func computeVulnerabilityID(target, affectedResource string, elems ...interface{}) string {
+	h := sha256.New()
+
+	fmt.Fprintf(h, "%s - %s", target, affectedResource)
+
+	for _, e := range elems {
+		fmt.Fprintf(h, " - %v", e)
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
