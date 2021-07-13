@@ -70,6 +70,7 @@ var (
 			Check the Details and Resources sections to know the compliance status
 			and more details.
 		</p>`,
+		Labels: []string{"compliance", "cis"},
 		References: []string{
 			"https://d0.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf",
 			"https://github.com/toniblyx/prowler",
@@ -103,6 +104,7 @@ var (
 			Check the Details and Resources sections to know the compliance status
 			and more details.
 		</p>`,
+		Labels: []string{"compliance", "cis"},
 		References: []string{
 			"https://d0.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf",
 			"https://github.com/toniblyx/prowler",
@@ -136,6 +138,7 @@ var (
 			Check the Details and Resources sections to know the compliance status
 			and more details.
 		</p>`,
+		Labels: []string{"compliance", "cis"},
 		References: []string{
 			"https://d0.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf",
 			"https://github.com/toniblyx/prowler",
@@ -153,6 +156,7 @@ var (
 			     Information gathered by executing the CIS benchmark on the account.
 		</p>
 			`,
+		Labels: []string{"informational", "compliance", "cis"},
 		References: []string{
 			"https://d0.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf",
 			"https://github.com/toniblyx/prowler",
