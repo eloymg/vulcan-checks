@@ -223,10 +223,6 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 			return err
 		}
 
-		ocurrences := report.ResourcesGroup{
-			Name: "Ocurrences",
-		}
-
 		for _, summary := range checkSummaries.Summaries {
 			// Only process summaries that has flagged resources
 			if summary.HasFlaggedResources == nil {
@@ -317,8 +313,11 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 					}
 				}
 
-				ocurrences.Rows = append(ocurrences.Rows, row)
-				ocurrences.Header = header
+				occurrences := report.ResourcesGroup{
+					Name: "Occurrences",
+				}
+				occurrences.Rows = append(occurrences.Rows, row)
+				occurrences.Header = header
 
 				summary := ""
 				// Avoid nil pointer dereference when reading *v.Name
@@ -332,10 +331,11 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 					Score:            score,
 					AffectedResource: aws.StringValue(fr.ResourceId),
 					Labels:           []string{"issue", "aws"},
+					Resources:        []report.ResourcesGroup{occurrences},
 				}
 				vuln.Recommendations = append(vuln.Recommendations, recommendedActions...)
 				vuln.References = append(vuln.References, additionalResources...)
-				vuln.Resources = append(vuln.Resources, ocurrences)
+				vuln.Resources = append(vuln.Resources, occurrences)
 
 				state.AddVulnerabilities(vuln)
 			}
