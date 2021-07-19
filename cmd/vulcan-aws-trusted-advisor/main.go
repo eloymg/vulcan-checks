@@ -335,7 +335,6 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 				}
 				vuln.Recommendations = append(vuln.Recommendations, recommendedActions...)
 				vuln.References = append(vuln.References, additionalResources...)
-				vuln.Resources = append(vuln.Resources, occurrences)
 
 				state.AddVulnerabilities(vuln)
 			}
