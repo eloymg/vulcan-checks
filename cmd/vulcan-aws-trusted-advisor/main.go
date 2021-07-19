@@ -223,12 +223,8 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 			return err
 		}
 
-		resourcesRed := report.ResourcesGroup{
-			Name: "Level: Red",
-		}
-
-		resourcesYellow := report.ResourcesGroup{
-			Name: "Level: Yellow",
+		ocurrences := report.ResourcesGroup{
+			Name: "Ocurrences",
 		}
 
 		for _, summary := range checkSummaries.Summaries {
@@ -295,11 +291,12 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 					}
 					alias = &res
 				}
+
 				// Alias can not be nil because the protection before.
-				header := []string{"Account"}
 				row := map[string]string{"Account": *alias}
+				header := []string{"Account"}
+				score := float32(0.0)
 				for i := 0; i < len(v.Metadata); i++ {
-					// TODO drop column STATUS
 					fieldName := ""
 					if v.Metadata[i] != nil {
 						fieldName = *v.Metadata[i]
@@ -309,66 +306,38 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 						value = *fr.Metadata[i]
 					}
 
+					if fieldName == "Status" {
+						score = severityMap[*v.Id][value]
+						continue
+					}
+
 					if v.Metadata[i] != nil && fr.Metadata[i] != nil {
 						row[fieldName] = value
 						header = append(header, fieldName)
 					}
 				}
 
-				if row["Status"] == "Yellow" {
-					resourcesYellow.Rows = append(resourcesYellow.Rows, row)
-					resourcesYellow.Header = header
-				}
+				ocurrences.Rows = append(ocurrences.Rows, row)
+				ocurrences.Header = header
 
-				if row["Status"] == "Red" {
-					resourcesRed.Rows = append(resourcesRed.Rows, row)
-					resourcesRed.Header = header
-				}
-			}
-
-			score := float32(0.0)
-
-			// Avoid nil pointer dereference when reading *v.Id
-			// Score will be zeroed
-			if v.Id != nil {
-				if len(resourcesYellow.Rows) > 0 {
-					score = severityMap[*v.Id]["yellow"]
-				}
-				if len(resourcesRed.Rows) > 0 {
-					score = severityMap[*v.Id]["red"]
-				}
-			}
-
-			if len(resourcesRed.Rows) > 0 || len(resourcesYellow.Rows) > 0 {
 				summary := ""
 				// Avoid nil pointer dereference when reading *v.Name
 				if v.Name != nil {
 					summary = "AWS " + *v.Name
 				}
 
-				v := report.Vulnerability{
-					Summary:     summary,
-					Description: description,
-					Score:       score,
+				vuln := report.Vulnerability{
+					Summary:          summary,
+					Description:      description,
+					Score:            score,
+					AffectedResource: aws.StringValue(fr.ResourceId),
+					Labels:           []string{"issue", "aws"},
 				}
+				vuln.Recommendations = append(vuln.Recommendations, recommendedActions...)
+				vuln.References = append(vuln.References, additionalResources...)
+				vuln.Resources = append(vuln.Resources, ocurrences)
 
-				for _, r := range recommendedActions {
-					v.Recommendations = append(v.Recommendations, r)
-				}
-
-				for _, ar := range additionalResources {
-					v.References = append(v.References, ar)
-				}
-
-				if len(resourcesRed.Rows) > 0 {
-					v.Resources = append(v.Resources, resourcesRed)
-				}
-
-				if len(resourcesYellow.Rows) > 0 {
-					v.Resources = append(v.Resources, resourcesYellow)
-				}
-
-				state.AddVulnerabilities(v)
+				state.AddVulnerabilities(vuln)
 			}
 		}
 	}
