@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -336,6 +337,8 @@ func scanAccount(opt options, target, assetType string, logger *logrus.Entry, st
 				vuln.Recommendations = append(vuln.Recommendations, recommendedActions...)
 				vuln.References = append(vuln.References, additionalResources...)
 
+				vuln.ID = computeVulnerabilityID(target, vuln.AffectedResource)
+
 				state.AddVulnerabilities(vuln)
 			}
 		}
@@ -403,4 +406,16 @@ func accountAlias(creds *credentials.Credentials) (string, error) {
 		return "", errors.New("unexpected nil getting aliases for aws account")
 	}
 	return *a, nil
+}
+
+func computeVulnerabilityID(target, affectedResource string, elems ...interface{}) string {
+	h := sha256.New()
+
+	fmt.Fprintf(h, "%s - %s", target, affectedResource)
+
+	for _, e := range elems {
+		fmt.Fprintf(h, " - %v", e)
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
