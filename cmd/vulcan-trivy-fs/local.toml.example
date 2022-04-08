@@ -1,0 +1,9 @@
+[Check]
+Target = "https://github.com/adevinta/vulcan-checks"
+AssetType = "GitRepository"
+# example targets:
+# https://github.com/adevinta/vulcan-checks
+# https://github.com/aquasec/trivy
+
+# example Options
+# Options = '{"force_update_db": false, "ignore_unfixed": false, "severities":"UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"}'

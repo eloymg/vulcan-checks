@@ -1,0 +1,4 @@
+Description = "Scan docker images using aquasec/trivy"
+AssetTypes = ["GitRepository"]
+RequiredVars = ["GITHUB_ENTERPRISE_ENDPOINT", "GITHUB_ENTERPRISE_TOKEN"]
+Options = '{"depth": 1, "branch":"", "force_update_db": false, "ignore_unfixed": false, "severities":"UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"}' 
